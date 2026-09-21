@@ -46,7 +46,14 @@ import androidx.compose.ui.unit.dp
 import com.flconverter.platform.PickedFile
 
 @Composable
-fun FileCard(file: PickedFile?, extension: String, enabled: Boolean, onClick: () -> Unit) {
+fun FileCard(
+    file: PickedFile?,
+    badge: String,
+    emptyTitle: String,
+    emptyHint: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
     val colors = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(20.dp)
     val interaction = remember { MutableInteractionSource() }
@@ -115,7 +122,7 @@ fun FileCard(file: PickedFile?, extension: String, enabled: Boolean, onClick: ()
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (current == null) "+" else extension.uppercase(),
+                        text = if (current == null) "+" else badge.uppercase(),
                         style = if (current == null) {
                             MaterialTheme.typography.headlineSmall
                         } else {
@@ -131,7 +138,7 @@ fun FileCard(file: PickedFile?, extension: String, enabled: Boolean, onClick: ()
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
-                        text = current?.name ?: "Select a .$extension file",
+                        text = current?.name ?: emptyTitle,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = colors.onSurface,
@@ -140,7 +147,7 @@ fun FileCard(file: PickedFile?, extension: String, enabled: Boolean, onClick: ()
                     )
                     Text(
                         text = if (current == null) {
-                            "Tap to browse your files"
+                            emptyHint
                         } else {
                             "${formatSize(current.bytes.size)} · Tap to change"
                         },

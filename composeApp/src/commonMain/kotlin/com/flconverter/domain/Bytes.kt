@@ -56,27 +56,57 @@ internal class ByteReader(private val bytes: ByteArray) {
     }
 }
 
-internal class ByteWriter(size: Int) {
-    private val bytes = ByteArray(size)
-    private var position = 0
+internal class ByteBuilder(capacity: Int = 256) {
+    private var buffer = ByteArray(capacity)
 
-    fun writeAscii(value: String) = writeBytes(value.encodeToByteArray())
+    var size = 0
+        private set
 
-    fun writeUInt16(value: Int) {
-        bytes[position++] = value.toByte()
-        bytes[position++] = (value shr 8).toByte()
+    fun u8(value: Int) {
+        ensure(1)
+        buffer[size++] = value.toByte()
     }
 
-    fun writeUInt32(value: Long) {
-        for (index in 0 until 4) {
-            bytes[position++] = (value shr (8 * index)).toByte()
+    fun u16(value: Int) {
+        u8(value)
+        u8(value shr 8)
+    }
+
+    fun u32(value: Long) {
+        for (index in 0 until 4) u8((value shr (8 * index)).toInt())
+    }
+
+    fun f64(value: Double) {
+        val bits = value.toRawBits()
+        for (index in 0 until 8) u8((bits shr (8 * index)).toInt())
+    }
+
+    fun ascii(value: String) = bytes(value.encodeToByteArray())
+
+    fun bytes(value: ByteArray) {
+        ensure(value.size)
+        value.copyInto(buffer, size)
+        size += value.size
+    }
+
+    fun varLength(value: Int) {
+        var rest = value
+        while (true) {
+            val low = rest and 0x7F
+            rest = rest ushr 7
+            if (rest == 0) {
+                u8(low)
+                return
+            }
+            u8(low or 0x80)
         }
     }
 
-    fun writeBytes(value: ByteArray) {
-        value.copyInto(bytes, position)
-        position += value.size
-    }
+    fun toByteArray(): ByteArray = buffer.copyOf(size)
 
-    fun toByteArray(): ByteArray = bytes
+    private fun ensure(extra: Int) {
+        if (size + extra > buffer.size) {
+            buffer = buffer.copyOf(maxOf(buffer.size * 2, size + extra))
+        }
+    }
 }

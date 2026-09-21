@@ -140,14 +140,15 @@ private fun NotePreview(notes: List<Note>) {
         notes.forEach { note ->
             val x = inset + width * note.position / end
             if (x < reveal) {
-                val noteWidth = max(width * note.length / end, 2.dp.toPx())
+                val noteWidth = max(width * note.length / end, 4.dp.toPx())
+                val noteHeight = max(rowHeight * 0.85f, 3.dp.toPx())
                 val y = top + (maxKey - note.key) * rowHeight
                 val velocity = note.velocity.coerceIn(0, 127) / 127f
                 drawRoundRect(
                     color = barColor.copy(alpha = 0.45f + 0.55f * velocity),
                     topLeft = Offset(x, y),
-                    size = Size(min(noteWidth, reveal - x), rowHeight * 0.8f),
-                    cornerRadius = CornerRadius(2.dp.toPx())
+                    size = Size(min(noteWidth, reveal - x), noteHeight),
+                    cornerRadius = CornerRadius(1.5.dp.toPx())
                 )
             }
         }

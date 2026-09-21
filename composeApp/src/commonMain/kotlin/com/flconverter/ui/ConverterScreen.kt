@@ -33,11 +33,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.flconverter.domain.ConversionMode
 import com.flconverter.platform.rememberFileHandler
 import com.flconverter.presentation.ConversionStatus
 import com.flconverter.presentation.ConverterViewModel
@@ -48,99 +54,164 @@ fun ConverterScreen(viewModel: ConverterViewModel = viewModel { ConverterViewMod
     val fileHandler = rememberFileHandler()
     val converting = state.status is ConversionStatus.Converting
     val colors = MaterialTheme.colorScheme
+    val source = state.mode.source
+    val target = state.mode.target
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Brush.verticalGradient(listOf(colors.surfaceVariant.copy(alpha = 0.55f), colors.background), endY = 900f))
-            .safeDrawingPadding(),
-        contentAlignment = Alignment.TopCenter
     ) {
-        Column(
-            modifier = Modifier
-                .widthIn(max = 520.dp)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        AmbientNotes(Modifier.fillMaxSize())
+
+        Box(
+            modifier = Modifier.fillMaxSize().safeDrawingPadding(),
+            contentAlignment = Alignment.TopCenter
         ) {
-            Entrance(0) { Header(active = converting) }
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 520.dp)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Entrance(0) { Header(active = converting) }
 
-            Entrance(1, Modifier.padding(top = 32.dp)) {
-                Section("Conversion") {
-                    ModeSelector(
-                        selected = state.mode,
-                        enabled = !converting,
-                        onSelect = viewModel::selectMode
-                    )
-                }
-            }
-
-            Entrance(2, Modifier.padding(top = 24.dp)) {
-                Section("File") {
-                    FileCard(
-                        file = state.file,
-                        extension = state.mode.source.extension,
-                        enabled = !converting,
-                        onClick = { fileHandler.pick(state.mode.source.extension, viewModel::onFilePicked) }
-                    )
-                }
-            }
-
-            SummaryCard(state.summary)
-
-            Entrance(3, Modifier.padding(top = 24.dp)) {
-                ConvertButton(
-                    target = state.mode.target.extension.uppercase(),
-                    enabled = state.file != null,
-                    converting = converting,
-                    onClick = {
-                        viewModel.convert { name, bytes ->
-                            fileHandler.save(name, bytes) { saved -> viewModel.onSaved(name, saved) }
-                        }
+                Entrance(1, Modifier.padding(top = 32.dp)) {
+                    Section("1", "Direction") {
+                        FlowCard(
+                            mode = state.mode,
+                            enabled = !converting,
+                            onSwap = {
+                                viewModel.selectMode(
+                                    if (state.mode == ConversionMode.FlpToFlm) ConversionMode.FlmToFlp else ConversionMode.FlpToFlm
+                                )
+                            }
+                        )
                     }
-                )
-            }
+                }
 
-            StatusCard(state.status)
+                Entrance(2, Modifier.padding(top = 24.dp)) {
+                    Section("2", "Project to convert") {
+                        FileCard(
+                            file = state.file,
+                            badge = source.extension,
+                            emptyTitle = "Select a .${source.extension} file",
+                            emptyHint = "Tap to browse your files",
+                            enabled = !converting,
+                            onClick = { fileHandler.pick(source.extension, viewModel::onFilePicked) }
+                        )
+                    }
+                }
+
+                SummaryCard(state.summary)
+
+                Entrance(3, Modifier.padding(top = 24.dp)) {
+                    Section(
+                        number = "3",
+                        title = "Base project",
+                        caption = "Receives the notes. Its instruments, mixer and effects are kept, its own notes are replaced."
+                    ) {
+                        FileCard(
+                            file = state.base,
+                            badge = target.extension,
+                            emptyTitle = "Select a .${target.extension} base project",
+                            emptyHint = "The ${target.description} that will receive the notes",
+                            enabled = !converting,
+                            onClick = { fileHandler.pick(target.extension, viewModel::onBasePicked) }
+                        )
+                    }
+                }
+
+                Entrance(4, Modifier.padding(top = 24.dp)) {
+                    ConvertButton(
+                        target = target.extension.uppercase(),
+                        enabled = state.file != null && state.base != null,
+                        converting = converting,
+                        onClick = {
+                            viewModel.convert { name, bytes ->
+                                fileHandler.save(name, bytes) { saved -> viewModel.onSaved(name, saved) }
+                            }
+                        }
+                    )
+                }
+
+                StatusCard(state.status)
+            }
         }
     }
 }
 
 @Composable
 private fun Header(active: Boolean) {
+    val accent = MaterialTheme.colorScheme.primary
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        AppLogo(Modifier.size(88.dp), active = active)
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.size(160.dp).drawBehind {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(accent.copy(alpha = 0.3f), Color.Transparent),
+                            center = center,
+                            radius = size.minDimension / 2
+                        )
+                    )
+                }
+            )
+            AppLogo(Modifier.size(92.dp), active = active)
+        }
+
         Text(
-            text = "FL Converter",
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = accent)) { append("FL") }
+                append(" Converter")
+            },
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
         Text(
-            text = "Convert FL Studio projects between FLP and FLM",
+            text = "Move your notes between FL Studio and FL Studio Mobile",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
+        Equalizer(active, Modifier.width(44.dp).height(20.dp))
     }
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+private fun Section(number: String, title: String, caption: String? = null, content: @Composable () -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = number,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = title.uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (caption != null) {
+            Text(
+                text = caption,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         content()
     }
 }

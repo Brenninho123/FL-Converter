@@ -4,9 +4,36 @@ object FlpCodec : ProjectCodec {
     private const val HEADER_ID = "FLhd"
     private const val DATA_ID = "FLdt"
     private const val HEADER_SIZE = 6
-    private const val CHUNK_PREFIX_SIZE = 8
+
+    private class Container(val format: Int, val channels: Int, val ppq: Int, val events: ByteArray)
 
     override fun decode(bytes: ByteArray): FlProject {
+        val container = readContainer(bytes)
+        val song = FlpSongReader.read(FlpEvents.parse(container.events), container.ppq)
+        return FlProject(container.format, container.channels, container.ppq, container.events, song)
+    }
+
+    override fun encode(project: FlProject, base: ByteArray): ByteArray {
+        val container = readContainer(base)
+        val events = FlpSongWriter.write(project.song, FlpEvents.parse(container.events), container.ppq)
+        val data = FlpEvents.serialize(events)
+
+        val out = ByteBuilder(data.size + 32)
+        out.ascii(HEADER_ID)
+        out.u32(HEADER_SIZE.toLong())
+        out.u16(container.format)
+        out.u16(container.channels)
+        out.u16(container.ppq)
+        out.ascii(DATA_ID)
+        out.u32(data.size.toLong())
+        out.bytes(data)
+        return out.toByteArray()
+    }
+
+    override fun capacity(base: ByteArray): Int =
+        FlpSongWriter.capacity(FlpEvents.parse(readContainer(base).events))
+
+    private fun readContainer(bytes: ByteArray): Container {
         val reader = ByteReader(bytes)
 
         if (reader.readAscii(4) != HEADER_ID) {
@@ -29,28 +56,6 @@ object FlpCodec : ProjectCodec {
             throw ConversionException("FLP data chunk is truncated")
         }
 
-        val events = reader.readBytes(length.toInt())
-        val song = FlpSongReader.read(FlpEvents.parse(events), ppq)
-
-        return FlProject(format, channels, ppq, events, song)
-    }
-
-    override fun encode(project: FlProject): ByteArray {
-        if (project.events.isEmpty()) {
-            throw ConversionException("Writing FLP from FLM notes is not implemented yet")
-        }
-
-        val writer = ByteWriter(CHUNK_PREFIX_SIZE + HEADER_SIZE + CHUNK_PREFIX_SIZE + project.events.size)
-
-        writer.writeAscii(HEADER_ID)
-        writer.writeUInt32(HEADER_SIZE.toLong())
-        writer.writeUInt16(project.format)
-        writer.writeUInt16(project.channels)
-        writer.writeUInt16(project.ppq)
-        writer.writeAscii(DATA_ID)
-        writer.writeUInt32(project.events.size.toLong())
-        writer.writeBytes(project.events)
-
-        return writer.toByteArray()
+        return Container(format, channels, ppq, reader.readBytes(length.toInt()))
     }
 }

@@ -22,6 +22,23 @@ class Song(
 ) {
     val noteCount: Int
         get() = patterns.sumOf { it.notes.size }
+
+    val noteChannels: List<Int>
+        get() = patterns.flatMap { pattern -> pattern.notes.map { it.channel } }.distinct().sorted()
+
+    fun arrangement(): List<Placement> {
+        val populated = patterns.filter { it.notes.isNotEmpty() }.map { it.index }.toSet()
+        val placed = placements.filter { it.pattern in populated }
+        if (placed.isNotEmpty()) return placed.sortedBy { it.start }
+
+        val bar = ppq * 4L
+        var cursor = 0L
+        return patterns.filter { it.notes.isNotEmpty() }.map { pattern ->
+            val end = pattern.notes.maxOf { it.position + it.length }
+            val length = ((end + bar - 1) / bar) * bar
+            Placement(pattern.index, cursor, length).also { cursor += length }
+        }
+    }
 }
 
 class SongSummary(
@@ -32,3 +49,6 @@ class SongSummary(
     val noteCount: Int,
     val previewNotes: List<Note>
 )
+
+internal fun mapChannels(source: List<Int>, targetCount: Int): Map<Int, Int> =
+    source.distinct().sorted().mapIndexed { index, channel -> channel to minOf(index, targetCount - 1) }.toMap()

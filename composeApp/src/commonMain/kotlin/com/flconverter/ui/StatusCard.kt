@@ -83,7 +83,7 @@ private fun StatusContent(status: ConversionStatus) {
                 )
                 Text(
                     text = when (status) {
-                        is ConversionStatus.Saved -> "Saved ${status.name}"
+                        is ConversionStatus.Saved -> "Saved ${status.name}. ${status.detail}"
                         is ConversionStatus.Failed -> status.message
                         else -> ""
                     },
