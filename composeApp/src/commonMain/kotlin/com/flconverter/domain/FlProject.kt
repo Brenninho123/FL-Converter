@@ -9,18 +9,24 @@ class FlProject(
 ) {
     fun summary(): SongSummary {
         val populated = song.patterns.filter { it.notes.isNotEmpty() }
-        val densest = populated.maxByOrNull { it.notes.size }
+        val preview = song.noteChannels.flatMap { channel ->
+            val densest = populated
+                .map { pattern -> pattern.notes.filter { it.channel == channel } }
+                .maxByOrNull { it.size }
+            densest?.take(PREVIEW_LIMIT).orEmpty()
+        }
+
         return SongSummary(
             tempo = song.tempo,
             ppq = ppq,
-            channels = channels,
+            channels = song.channelInfos(),
             patternCount = populated.size,
             noteCount = song.noteCount,
-            previewNotes = densest?.notes?.take(PREVIEW_LIMIT).orEmpty()
+            previewNotes = preview
         )
     }
 
     private companion object {
-        const val PREVIEW_LIMIT = 1000
+        const val PREVIEW_LIMIT = 300
     }
 }

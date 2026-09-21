@@ -13,8 +13,8 @@ object FlpCodec : ProjectCodec {
         return FlProject(container.format, container.channels, container.ppq, container.events, song)
     }
 
-    override fun encode(project: FlProject, base: ByteArray): ByteArray {
-        val container = readContainer(base)
+    override fun encode(project: FlProject, base: ByteArray?): ByteArray {
+        val container = if (base != null) readContainer(base) else defaultContainer(project.song)
         val events = FlpSongWriter.write(project.song, FlpEvents.parse(container.events), container.ppq)
         val data = FlpEvents.serialize(events)
 
@@ -30,8 +30,14 @@ object FlpCodec : ProjectCodec {
         return out.toByteArray()
     }
 
-    override fun capacity(base: ByteArray): Int =
-        FlpSongWriter.capacity(FlpEvents.parse(readContainer(base).events))
+    override fun capacity(base: ByteArray?, sourceChannels: Int): Int =
+        if (base == null) sourceChannels else FlpSongWriter.capacity(FlpEvents.parse(readContainer(base).events))
+
+    private fun defaultContainer(song: Song): Container {
+        val names = song.noteChannels.map { song.channelName(it) }
+        val events = FlpEvents.serialize(FlpDefaults.baseEvents(names))
+        return Container(0, names.size, FlpDefaults.PPQ, events)
+    }
 
     private fun readContainer(bytes: ByteArray): Container {
         val reader = ByteReader(bytes)

@@ -35,10 +35,12 @@ internal object FlmSongWriter {
                 chunk.tag == "HEAD" -> out.add(FlmChunk(chunk.tag, withTempo(chunk.payload, song.tempo)))
                 order >= 0 -> {
                     val sources = mapping.filterValues { it == order }.keys
-                    val clips = arrangement.mapNotNull { placement ->
-                        val notes = patterns[placement.pattern]?.notes.orEmpty().filter { it.channel in sources }
-                        if (notes.isEmpty()) null else ClipSpec(placement.start, placement.length, notes)
-                    }
+                    val clips = mergeOverlaps(
+                        arrangement.mapNotNull { placement ->
+                            val notes = patterns[placement.pattern]?.notes.orEmpty().filter { it.channel in sources }
+                            if (notes.isEmpty()) null else ClipSpec(placement.start, placement.length, notes)
+                        }
+                    )
                     val rebuilt = rebuildChannel(chunk, clips, song.ppq, nextId)
                     nextId += clips.size
                     out.add(rebuilt)
@@ -52,6 +54,24 @@ internal object FlmSongWriter {
         result.ascii(FlmSongReader.MAGIC)
         result.bytes(body)
         return result.toByteArray()
+    }
+
+    private fun mergeOverlaps(clips: List<ClipSpec>): List<ClipSpec> {
+        val merged = ArrayList<ClipSpec>()
+
+        for (clip in clips.sortedBy { it.start }) {
+            val last = merged.lastOrNull()
+            if (last == null || clip.start >= last.start + last.length) {
+                merged.add(clip)
+                continue
+            }
+
+            val shift = clip.start - last.start
+            val end = maxOf(last.start + last.length, clip.start + clip.length)
+            merged[merged.lastIndex] = ClipSpec(last.start, end - last.start, last.notes + clip.notes.map { it.moved(shift) })
+        }
+
+        return merged
     }
 
     private fun parseBase(base: ByteArray): List<FlmChunk> {

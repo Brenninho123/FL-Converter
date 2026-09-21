@@ -29,10 +29,14 @@ data class ConverterState(
     val file: PickedFile? = null,
     val base: PickedFile? = null,
     val summary: SongSummary? = null,
+    val excluded: Set<Int> = emptySet(),
     val status: ConversionStatus = ConversionStatus.Idle
 ) {
+    val hasSelection: Boolean
+        get() = summary?.channels?.any { it.index !in excluded } ?: file != null
+
     val canConvert: Boolean
-        get() = file != null && base != null && status !is ConversionStatus.Converting
+        get() = file != null && hasSelection && status !is ConversionStatus.Converting
 }
 
 class ConverterViewModel : ViewModel() {
@@ -51,12 +55,12 @@ class ConverterViewModel : ViewModel() {
         val expected = mutableState.value.mode.source.extension
         if (!hasExtension(file, expected)) {
             mutableState.update {
-                it.copy(file = null, summary = null, status = ConversionStatus.Failed("Select a .$expected file"))
+                it.copy(file = null, summary = null, excluded = emptySet(), status = ConversionStatus.Failed("Select a .$expected file"))
             }
             return
         }
 
-        mutableState.update { it.copy(file = file, summary = null, status = ConversionStatus.Idle) }
+        mutableState.update { it.copy(file = file, summary = null, excluded = emptySet(), status = ConversionStatus.Idle) }
         analyze(file, mutableState.value.mode)
     }
 
@@ -74,10 +78,20 @@ class ConverterViewModel : ViewModel() {
         mutableState.update { it.copy(base = file, status = ConversionStatus.Idle) }
     }
 
+    fun clearBase() {
+        mutableState.update { it.copy(base = null, status = ConversionStatus.Idle) }
+    }
+
+    fun toggleChannel(index: Int) {
+        mutableState.update {
+            val excluded = if (index in it.excluded) it.excluded - index else it.excluded + index
+            it.copy(excluded = excluded, status = ConversionStatus.Idle)
+        }
+    }
+
     fun convert(onConverted: (name: String, bytes: ByteArray) -> Unit) {
         val current = mutableState.value
         val file = current.file ?: return
-        val base = current.base ?: return
         if (!current.canConvert) return
 
         mutableState.update { it.copy(status = ConversionStatus.Converting) }
@@ -85,7 +99,7 @@ class ConverterViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val result = withContext(Dispatchers.Default) {
-                    converterFor(current.mode).convert(file.bytes, base.bytes)
+                    converterFor(current.mode).convert(file.bytes, current.base?.bytes, current.excluded)
                 }
                 val name = file.name.substringBeforeLast('.') + "." + current.mode.target.extension
                 detail = describe(result)
@@ -124,12 +138,14 @@ class ConverterViewModel : ViewModel() {
     }
 
     private fun describe(result: ConversionResult): String {
-        val notes = "${result.notes} notes"
-        return if (result.sourceChannels > result.targetChannels) {
-            "$notes from ${result.sourceChannels} channels, merged into the ${result.targetChannels} channels of the base project."
+        val notes = "${result.notes} notes from ${result.sourceChannels} channels"
+        val merged = if (result.sourceChannels > result.targetChannels) {
+            ", merged into the ${result.targetChannels} channel" + (if (result.targetChannels == 1) "" else "s") + " of the base project"
         } else {
-            "$notes from ${result.sourceChannels} channels."
+            ""
         }
+        val fallback = if (result.usedDefaultBase) " A default base project was used, so assign instruments in the target app." else ""
+        return "$notes$merged.$fallback"
     }
 
     private fun fail(message: String) {

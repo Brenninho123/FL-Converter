@@ -10,12 +10,19 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -29,6 +36,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.flconverter.domain.Note
 import com.flconverter.domain.SongSummary
@@ -37,7 +45,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 @Composable
-fun SummaryCard(summary: SongSummary?) {
+fun SummaryCard(summary: SongSummary?, excluded: Set<Int>, onToggleChannel: (Int) -> Unit) {
     AnimatedContent(
         targetState = summary,
         transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(200)) },
@@ -45,14 +53,15 @@ fun SummaryCard(summary: SongSummary?) {
     ) { current ->
         if (current != null) {
             Column(Modifier.padding(top = 24.dp)) {
-                SummaryContent(current)
+                SummaryContent(current, excluded, onToggleChannel)
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SummaryContent(summary: SongSummary) {
+private fun SummaryContent(summary: SongSummary, excluded: Set<Int>, onToggleChannel: (Int) -> Unit) {
     val colors = MaterialTheme.colorScheme
 
     Surface(
@@ -79,7 +88,42 @@ private fun SummaryContent(summary: SongSummary) {
             }
 
             if (summary.previewNotes.isNotEmpty()) {
-                NotePreview(summary.previewNotes)
+                NotePreview(summary.previewNotes, excluded)
+            }
+
+            if (summary.channels.isNotEmpty()) {
+                Text(
+                    text = "CHANNELS  ·  tap to include or exclude",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onSurfaceVariant
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    summary.channels.forEach { info ->
+                        FilterChip(
+                            selected = info.index !in excluded,
+                            onClick = { onToggleChannel(info.index) },
+                            label = {
+                                Text("${info.name} · ${info.notes}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            },
+                            leadingIcon = {
+                                Box(
+                                    Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(channelColor(info.index))
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = colors.surfaceVariant,
+                                selectedLabelColor = colors.onSurface
+                            )
+                        )
+                    }
+                }
             }
         }
     }
@@ -110,9 +154,8 @@ private fun Stat(label: String, value: String, modifier: Modifier) {
 }
 
 @Composable
-private fun NotePreview(notes: List<Note>) {
+private fun NotePreview(notes: List<Note>, excluded: Set<Int>) {
     val progress = remember(notes) { Animatable(0f) }
-    val barColor = MaterialTheme.colorScheme.primary
 
     LaunchedEffect(notes) {
         progress.animateTo(1f, tween(1400, easing = FastOutSlowInEasing))
@@ -144,8 +187,9 @@ private fun NotePreview(notes: List<Note>) {
                 val noteHeight = max(rowHeight * 0.85f, 3.dp.toPx())
                 val y = top + (maxKey - note.key) * rowHeight
                 val velocity = note.velocity.coerceIn(0, 127) / 127f
+                val visible = if (note.channel in excluded) 0.12f else 0.5f + 0.5f * velocity
                 drawRoundRect(
-                    color = barColor.copy(alpha = 0.45f + 0.55f * velocity),
+                    color = channelColor(note.channel).copy(alpha = visible),
                     topLeft = Offset(x, y),
                     size = Size(min(noteWidth, reveal - x), noteHeight),
                     cornerRadius = CornerRadius(1.5.dp.toPx())
@@ -155,7 +199,7 @@ private fun NotePreview(notes: List<Note>) {
 
         if (progress.value < 1f) {
             drawLine(
-                color = barColor.copy(alpha = 0.8f),
+                color = channelColor(0).copy(alpha = 0.8f),
                 start = Offset(reveal, 0f),
                 end = Offset(reveal, size.height),
                 strokeWidth = 2.dp.toPx()

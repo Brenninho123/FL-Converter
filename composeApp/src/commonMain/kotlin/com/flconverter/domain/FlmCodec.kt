@@ -10,11 +10,12 @@ object FlmCodec : ProjectCodec {
         return FlProject(0, song.channelNames.size, song.ppq, ByteArray(0), song)
     }
 
-    override fun capacity(base: ByteArray): Int = FlmSongWriter.capacity(base)
+    override fun capacity(base: ByteArray?, sourceChannels: Int): Int =
+        FlmSongWriter.capacity(base ?: DefaultFlm.bytes())
 
-    override fun encode(project: FlProject, base: ByteArray): ByteArray {
+    override fun encode(project: FlProject, base: ByteArray?): ByteArray {
         try {
-            return FlmSongWriter.write(project.song, base)
+            return FlmSongWriter.write(project.song, base ?: DefaultFlm.bytes())
         } catch (error: IndexOutOfBoundsException) {
             throw ConversionException("The base FLM file is corrupted")
         }

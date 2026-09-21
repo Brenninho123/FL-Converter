@@ -20,13 +20,6 @@ internal object FlpSongWriter {
 
     private val PATTERN_BODY = setOf(FlpSongReader.NOTES, PATTERN_NAME, 150, 157, 158, 164)
 
-    private val DEFAULT_NOTE = hexBytes("00000000 0040 0300 30000000 5600 0000 7800 4000 40 64 80 80")
-
-    private val DEFAULT_ITEM = hexBytes(
-        "00000000 0050 0150 00480000 F001 0000 7800 4000 40648080 00000000 00480000 01000000 " +
-            "00000000 00000000 00000000 00000000 0000803F 00000000"
-    )
-
     private class Block(val start: Int, val end: Int, val hasNotes: Boolean)
 
     fun write(song: Song, base: List<FlpEvent>, basePpq: Int): List<FlpEvent> {
@@ -134,7 +127,7 @@ internal object FlpSongWriter {
 
     private fun notePrototype(base: List<FlpEvent>): ByteArray {
         val event = base.firstOrNull { it.id == FlpSongReader.NOTES && it.data.size >= FlpSongReader.NOTE_SIZE }
-        return event?.data?.copyOfRange(0, FlpSongReader.NOTE_SIZE) ?: DEFAULT_NOTE
+        return event?.data?.copyOfRange(0, FlpSongReader.NOTE_SIZE) ?: FlpDefaults.NOTE
     }
 
     private fun encodeNotes(
@@ -179,7 +172,7 @@ internal object FlpSongWriter {
 
         val items = List(data.size / size) { data.copyOfRange(it * size, (it + 1) * size) }
         val kept = items.filter { it.uint16(PLAYLIST_INDEX_OFFSET) <= FlpSongReader.PATTERN_BASE }
-        val prototype = items.firstOrNull { it.uint16(PLAYLIST_INDEX_OFFSET) > FlpSongReader.PATTERN_BASE } ?: DEFAULT_ITEM
+        val prototype = items.firstOrNull { it.uint16(PLAYLIST_INDEX_OFFSET) > FlpSongReader.PATTERN_BASE } ?: FlpDefaults.ITEM
         val usedTracks = kept.maxOfOrNull { FlpSongReader.TRACK_COUNT - it.uint16(PLAYLIST_TRACK_OFFSET) } ?: 0
 
         val channelByPattern = song.patterns.associate { pattern ->
@@ -214,8 +207,7 @@ internal object FlpSongWriter {
 
     private fun patternName(song: Song, pattern: Pattern, id: Int): String {
         val channel = pattern.notes.first().channel
-        val name = song.channelNames.getOrNull(channel).orEmpty()
-        return if (name.isBlank()) "Pattern $id" else "$name $id"
+        return "${song.channelName(channel)} $id"
     }
 
     private fun rescale(value: Long, from: Int, to: Int): Long = if (from == to) value else value * to / from

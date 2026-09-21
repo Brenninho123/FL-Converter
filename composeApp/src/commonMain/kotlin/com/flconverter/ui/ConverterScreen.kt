@@ -27,6 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -105,29 +106,34 @@ fun ConverterScreen(viewModel: ConverterViewModel = viewModel { ConverterViewMod
                     }
                 }
 
-                SummaryCard(state.summary)
+                SummaryCard(state.summary, state.excluded, viewModel::toggleChannel)
 
                 Entrance(3, Modifier.padding(top = 24.dp)) {
                     Section(
                         number = "3",
-                        title = "Base project",
-                        caption = "Receives the notes. Its instruments, mixer and effects are kept, its own notes are replaced."
+                        title = "Base project (optional)",
+                        caption = "Use one of your own projects to keep its instruments, mixer and effects. Without one, a default project is created and you assign the instruments afterwards."
                     ) {
                         FileCard(
                             file = state.base,
                             badge = target.extension,
-                            emptyTitle = "Select a .${target.extension} base project",
-                            emptyHint = "The ${target.description} that will receive the notes",
+                            emptyTitle = "Choose a .${target.extension} base project",
+                            emptyHint = "Optional  ·  tap to browse",
                             enabled = !converting,
                             onClick = { fileHandler.pick(target.extension, viewModel::onBasePicked) }
                         )
+                        if (state.base != null) {
+                            TextButton(onClick = viewModel::clearBase, enabled = !converting) {
+                                Text("Use the default base instead")
+                            }
+                        }
                     }
                 }
 
                 Entrance(4, Modifier.padding(top = 24.dp)) {
                     ConvertButton(
                         target = target.extension.uppercase(),
-                        enabled = state.file != null && state.base != null,
+                        enabled = state.file != null && state.hasSelection,
                         converting = converting,
                         onClick = {
                             viewModel.convert { name, bytes ->

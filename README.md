@@ -42,18 +42,17 @@ With the secrets set, the workflow builds a signed release APK, verifies the sig
 The source is `assets/icon.svg`. The generated PNG, ICO, ICNS, Android and iOS variants live in `composeApp/icons`, `composeApp/src/androidMain/res`, `composeApp/src/desktopMain/resources` and `iosApp/iosApp/Assets.xcassets`.
 
 ## How conversion works
-FL Converter transfers the notes between the two formats. Neither format can be rebuilt from scratch, because instruments, mixer and effects live in project data that only the target application understands. So the conversion needs three files:
+FL Converter transfers the notes between the two formats. Instruments, mixer and effects live in project data that only the target application understands, so they are never invented:
 
-1. the project to convert (source)
-2. a base project of the target format (for example an empty `.flm` when converting to FLM)
-3. the output, which is the base project with its notes and playlist replaced by the source notes
+- **With a base project** (recommended): pick a project of the target format. The result is that project with its notes and playlist replaced. Instruments, mixer, effects and audio are kept byte for byte.
+- **Without a base project**: a built-in default is used. FLP gets one empty sampler channel per source channel, named after it. FLM gets a single instrument channel, and every source channel is merged into it. Assign the instruments in the target app afterwards.
 
-Everything else in the base project is kept byte for byte: instruments, mixer, effects and audio.
-
-- Each source channel that has notes is mapped, in order, to a note-capable channel of the base project. When the base has fewer channels than the source, the extra source channels are merged into the last one and the app reports it.
+Other rules:
+- Source channels can be included or excluded before converting.
+- Each source channel with notes is mapped, in order, to a note-capable channel of the base. When the base has fewer channels, the extra source channels are merged into the last one and the app reports it.
+- Overlapping clips that end up on the same FLM channel are merged into one clip.
 - FLM clips become FLP patterns with playlist items, and FLP playlist items become FLM clips.
-- Tempo is copied to the target.
-- Note timing is exact at 96 ticks per beat. Velocity is quantized to 0-127.
+- Tempo is copied. Note timing is exact at 96 ticks per beat. Velocity is quantized to 0-127.
 
 ## Status
-Both directions run and were checked against real projects: every note is preserved (position, length and key) when a converted file is read back, and an FLP or FLM written over itself keeps all its notes. Files were not opened in FL Studio or FL Studio Mobile, so please test the output and report any problem.
+Both directions run, with and without a base project, and were checked against real projects: every note is preserved (position, length and key) when a converted file is read back. Files were not opened in FL Studio or FL Studio Mobile, so please test the output and report any problem.

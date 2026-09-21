@@ -1,7 +1,11 @@
+@file:OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+
 package com.flconverter.platform
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import kotlinx.cinterop.BetaInteropApi
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import platform.Foundation.NSData

@@ -4,21 +4,27 @@ class ConversionResult(
     val bytes: ByteArray,
     val notes: Int,
     val sourceChannels: Int,
-    val targetChannels: Int
+    val targetChannels: Int,
+    val usedDefaultBase: Boolean
 )
 
 class ProjectConverter(
     private val source: ProjectCodec,
     private val target: ProjectCodec
 ) {
-    fun convert(input: ByteArray, base: ByteArray): ConversionResult {
-        val project = source.decode(input)
-        val output = target.encode(project, base)
+    fun convert(input: ByteArray, base: ByteArray?, excluded: Set<Int> = emptySet()): ConversionResult {
+        val decoded = source.decode(input)
+        val song = decoded.song.withoutChannels(excluded)
+        if (song.noteCount == 0) throw ConversionException("Select at least one channel that has notes")
+
+        val project = FlProject(decoded.format, decoded.channels, decoded.ppq, decoded.events, song)
+        val sourceChannels = song.noteChannels.size
         return ConversionResult(
-            bytes = output,
-            notes = project.song.noteCount,
-            sourceChannels = project.song.noteChannels.size,
-            targetChannels = target.capacity(base)
+            bytes = target.encode(project, base),
+            notes = song.noteCount,
+            sourceChannels = sourceChannels,
+            targetChannels = target.capacity(base, sourceChannels),
+            usedDefaultBase = base == null
         )
     }
 }
