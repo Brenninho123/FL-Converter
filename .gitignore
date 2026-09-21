@@ -36,3 +36,5 @@ DerivedData/
 iosApp/iosApp.xcodeproj/
 iosApp/iosApp/Info.plist
 iosApp/build/
+*.jks
+*.keystore

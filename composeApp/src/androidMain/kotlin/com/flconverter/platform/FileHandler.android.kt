@@ -1,4 +1,4 @@
-package com.flconverter
+package com.flconverter.platform
 
 import android.content.Context
 import android.net.Uri
@@ -9,9 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
-import com.flconverter.platform.FileHandler
-import com.flconverter.platform.PickedFile
-import com.flconverter.platform.rememberFileHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

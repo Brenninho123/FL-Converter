@@ -1,10 +1,7 @@
-package com.flconverter
+package com.flconverter.platform
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import com.flconverter.platform.FileHandler
-import com.flconverter.platform.PickedFile
-import com.flconverter.platform.rememberFileHandler
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File

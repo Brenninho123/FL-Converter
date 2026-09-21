@@ -51,6 +51,11 @@ jobs:
   android:
     name: Android
     runs-on: ubuntu-latest
+    env:
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -63,16 +68,55 @@ jobs:
         with:
           gradle-version: ${{ env.GRADLE_VERSION }}
 
-      - name: Assemble APK
-        run: gradle :composeApp:assembleDebug --no-daemon
+      - name: Restore signing key
+        if: env.KEYSTORE_BASE64 != ''
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
 
-      - name: Rename APK
-        run: cp composeApp/build/outputs/apk/debug/composeApp-debug.apk FL-Converter-android.apk
+      - name: Assemble signed release APK
+        if: env.KEYSTORE_BASE64 != ''
+        run: |
+          gradle :composeApp:assembleRelease --no-daemon
+          cp composeApp/build/outputs/apk/release/composeApp-release.apk FL-Converter-android.apk
+
+      - name: Assemble debug APK (signing key not configured)
+        if: env.KEYSTORE_BASE64 == ''
+        run: |
+          echo "::warning::ANDROID_KEYSTORE_BASE64 is not set. The debug-signed APK is likely to be flagged by Google Play Protect."
+          gradle :composeApp:assembleDebug --no-daemon
+          cp composeApp/build/outputs/apk/debug/composeApp-debug.apk FL-Converter-android.apk
+
+      - name: Verify APK signature
+        run: |
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --verbose --print-certs FL-Converter-android.apk | tee signature.txt
+          if grep -q "CN=Android Debug" signature.txt; then
+            if [ -n "$KEYSTORE_BASE64" ]; then
+              echo "::error::The release APK is signed with the Android debug certificate."
+              exit 1
+            fi
+            echo "::warning::APK is signed with the Android debug certificate."
+          fi
+
+      - name: Inspect manifest
+        run: |
+          AAPT2=$(ls -d "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          "$AAPT2" dump badging FL-Converter-android.apk | grep -E "^(package|sdkVersion|targetSdkVersion|uses-permission|application-label)" || true
+          if "$AAPT2" dump permissions FL-Converter-android.apk | grep "uses-permission" | grep -qv "DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"; then
+            echo "::error::The APK requests permissions the app does not need."
+            exit 1
+          fi
+
+      - name: Checksum
+        run: sha256sum FL-Converter-android.apk | tee FL-Converter-android.apk.sha256
 
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: FL-Converter-android.apk
+          path: |
+            FL-Converter-android.apk
+            FL-Converter-android.apk.sha256
           if-no-files-found: error
 
   ios:
