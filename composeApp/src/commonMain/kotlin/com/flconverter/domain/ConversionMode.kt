@@ -5,5 +5,5 @@ enum class ConversionMode(val source: FlFormat, val target: FlFormat) {
     FlmToFlp(FlFormat.Flm, FlFormat.Flp);
 
     val label: String
-        get() = "${source.extension.uppercase()} to ${target.extension.uppercase()}"
+        get() = "${source.extension.uppercase()} → ${target.extension.uppercase()}"
 }

@@ -24,7 +24,7 @@ Requires JDK 17 or newer and the Android SDK for the Android target.
 - Android debug `.apk`
 - iOS unsigned `.ipa` (must be re-signed to install on a device)
 
-Pushing a tag such as `v1.0.0` also publishes all artifacts to a GitHub Release.
+Everything is uploaded as workflow artifacts. There is no release publishing.
 
 ## Icon
 The source is `assets/icon.svg`. The generated PNG, ICO, ICNS, Android and iOS variants live in `composeApp/icons`, `composeApp/src/androidMain/res`, `composeApp/src/desktopMain/resources` and `iosApp/iosApp/Assets.xcassets`.
