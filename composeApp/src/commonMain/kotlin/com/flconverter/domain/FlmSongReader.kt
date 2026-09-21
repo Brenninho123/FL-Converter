@@ -6,7 +6,7 @@ internal object FlmSongReader {
     private const val MAGIC = "10LF"
     private const val PPQ = 96
     private const val DEFAULT_TEMPO = 120.0
-    private const val HEAD_TEMPO_OFFSET = 296
+    private const val HEAD_TEMPO_OFFSET = 264
     private const val CHUNK_PREFIX = 8
     private const val SUB_CHUNK_OFFSET = 8
     private const val NOTE_STRIDE = 20
@@ -14,6 +14,7 @@ internal object FlmSongReader {
     private const val POSITION_SCALE = 8388608L
     private const val VELOCITY_SCALE = 32767L
     private const val NAME_LIMIT = 256
+    private const val CLIP_UNITS_PER_BEAT = 64L
 
     fun read(bytes: ByteArray): Song {
         if (bytes.size < 8 || bytes.ascii(0, 4) != MAGIC) {
@@ -76,7 +77,7 @@ internal object FlmSongReader {
         patterns: MutableList<Pattern>,
         placements: MutableList<Placement>
     ) {
-        val position = bytes.uint32(start)
+        val position = bytes.uint32(start) * PPQ / CLIP_UNITS_PER_BEAT
         var length = 0L
         var notes = emptyList<Note>()
 
