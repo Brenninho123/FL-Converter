@@ -8,6 +8,23 @@ internal class ByteReader(private val bytes: ByteArray) {
 
     fun readAscii(length: Int): String = readBytes(length).decodeToString()
 
+    fun readUInt8(): Int {
+        ensure(1)
+        return bytes[position++].toInt() and 0xFF
+    }
+
+    fun readVarLength(): Int {
+        var value = 0
+        var shift = 0
+        while (true) {
+            val next = readUInt8()
+            value = value or ((next and 0x7F) shl shift)
+            if (next and 0x80 == 0) return value
+            shift += 7
+            if (shift > 28) throw ConversionException("Invalid event length")
+        }
+    }
+
     fun readUInt16(): Int {
         ensure(2)
         val value = (bytes[position].toInt() and 0xFF) or ((bytes[position + 1].toInt() and 0xFF) shl 8)

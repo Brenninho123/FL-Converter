@@ -29,10 +29,17 @@ object FlpCodec : ProjectCodec {
             throw ConversionException("FLP data chunk is truncated")
         }
 
-        return FlProject(format, channels, ppq, reader.readBytes(length.toInt()))
+        val events = reader.readBytes(length.toInt())
+        val song = FlpSongReader.read(FlpEvents.parse(events), ppq)
+
+        return FlProject(format, channels, ppq, events, song)
     }
 
     override fun encode(project: FlProject): ByteArray {
+        if (project.events.isEmpty()) {
+            throw ConversionException("Writing FLP from FLM notes is not implemented yet")
+        }
+
         val writer = ByteWriter(CHUNK_PREFIX_SIZE + HEADER_SIZE + CHUNK_PREFIX_SIZE + project.events.size)
 
         writer.writeAscii(HEADER_ID)

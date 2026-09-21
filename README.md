@@ -42,4 +42,4 @@ With the secrets set, the workflow builds a signed release APK, verifies the sig
 The source is `assets/icon.svg`. The generated PNG, ICO, ICNS, Android and iOS variants live in `composeApp/icons`, `composeApp/src/androidMain/res`, `composeApp/src/desktopMain/resources` and `iosApp/iosApp/Assets.xcassets`.
 
 ## Status
-The FLP codec reads and writes the FLP container (header and data chunk). The FLM codec is a stub in `FlmCodec`, so conversions currently report that FLM support is not implemented.
+Both formats can be read: the FLP codec reads the container and its notes (tempo, patterns, notes) and the FLM codec reads tempo, channels, clips and notes. Writing is not implemented yet: FLP output from FLM notes and any FLM output are reported as unsupported instead of producing a file.

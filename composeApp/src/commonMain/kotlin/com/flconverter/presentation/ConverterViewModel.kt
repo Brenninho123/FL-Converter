@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flconverter.domain.ConversionException
 import com.flconverter.domain.ConversionMode
+import com.flconverter.domain.SongSummary
 import com.flconverter.domain.converterFor
+import com.flconverter.domain.summarize
 import com.flconverter.platform.PickedFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +26,7 @@ sealed interface ConversionStatus {
 data class ConverterState(
     val mode: ConversionMode = ConversionMode.FlpToFlm,
     val file: PickedFile? = null,
+    val summary: SongSummary? = null,
     val status: ConversionStatus = ConversionStatus.Idle
 )
 
@@ -46,7 +49,21 @@ class ConverterViewModel : ViewModel() {
             return
         }
 
-        mutableState.update { it.copy(file = file, status = ConversionStatus.Idle) }
+        mutableState.update { it.copy(file = file, summary = null, status = ConversionStatus.Idle) }
+        analyze(file, mutableState.value.mode)
+    }
+
+    private fun analyze(file: PickedFile, mode: ConversionMode) {
+        viewModelScope.launch {
+            val summary = withContext(Dispatchers.Default) {
+                try {
+                    summarize(mode, file.bytes)
+                } catch (error: ConversionException) {
+                    null
+                }
+            }
+            mutableState.update { if (it.file === file) it.copy(summary = summary) else it }
+        }
     }
 
     fun convert(onConverted: (name: String, bytes: ByteArray) -> Unit) {

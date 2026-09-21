@@ -2,7 +2,12 @@ package com.flconverter.domain
 
 object FlmCodec : ProjectCodec {
     override fun decode(bytes: ByteArray): FlProject {
-        throw ConversionException("FLM reading is not implemented yet")
+        val song = try {
+            FlmSongReader.read(bytes)
+        } catch (error: IndexOutOfBoundsException) {
+            throw ConversionException("FLM file is corrupted")
+        }
+        return FlProject(0, song.channelNames.size, song.ppq, ByteArray(0), song)
     }
 
     override fun encode(project: FlProject): ByteArray {

@@ -14,3 +14,6 @@ fun codecFor(format: FlFormat): ProjectCodec = when (format) {
 
 fun converterFor(mode: ConversionMode): ProjectConverter =
     ProjectConverter(codecFor(mode.source), codecFor(mode.target))
+
+fun summarize(mode: ConversionMode, input: ByteArray): SongSummary =
+    codecFor(mode.source).decode(input).summary()
